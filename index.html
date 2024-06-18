@@ -1,0 +1,428 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./styles.css">
+    <title>Ottawa Vehicular Accident Analysis 2017-2022</title>
+    
+</head>
+<body onload="location.href='#header'">
+    <div id="table-contents">
+        <p>Table of Contents</p>
+    </div>
+    <header>
+        <h1>Ottawa Crash Analysis 2017-2022<span id="by">&nbsp&nbsp&nbspby Hadi Al-Sayed Ali</span></h1>
+        
+    </header>
+    <div id="content">
+        <h2 id="introduction">
+            Introduction
+        </h2>
+        <p>
+            Between 2017 and 2022, there were <span class="sqlLink" id="numCrashes">74612 recorded vehicular crashes</span> in Ottawa, Ontario. This project seeks to review the risk factors, the distributions of crashes, and the contexts in which these accidents arise. Lastly, with all this information considered, various machine models will be developed and tested to predict the severity of vehicular accidents in Ottawa.
+        </p>
+        <p>
+            This project uses a <a href="https://open.ottawa.ca/datasets/de06f9a92931409087c18513969b4b2e_0/explore">dataset</a> that is publicly available on the City of Ottawa website. The following additional information is from the dataset page: 
+        </p>
+        <blockquote>
+            Each reportable collision occurring on public roadways is sent to the City of Ottawa and is validated at least once. Approximately 50% of the records are validated once again by a senior staff. Additionally, many queries are run on the database looking for errors.
+        </blockquote>
+        <p>
+            Interact with the map below to view each accident in this dataset. The darker shades indicate a more severe crash, with a black indicator indicating a fatality. You can view additional information about the crashes by pressing on their indicators.
+        </p>
+        <div class="map">
+            <iframe src="https://www.google.com/maps/d/u/0/embed?mid=1tAck0gUHdrYokCiza3qHTRNiZ_zhTx8&ehbc=2E312F&noprof=1" width="640" height="480"></iframe>
+        </div>
+        <h2 id="preprocessing">
+            Preprocessing
+        </h2>
+        <p>
+            We begin by importing the relevant libraries and loading the dataset. 
+        </p>
+        <div class='gist'>
+            <script src="https://gist.github.com/hadialsayedali01/9341817a8e4583310ff49487b572241a.js"></script>
+        </div>
+        <p>
+            We now take a general look at the data.
+        </p>
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/eda835b2ebc41d9deaecc59024655e17.js"></script>
+        </div>
+        <p>We now clean the dataset.</p>
+        <ul>
+            <strong><li><p>Drop columns. </strong>Columns 'X' and 'Y' are estimates of the accident location. There is, however, a pair of global longitutde and latitude columns that we can use to map each crash location on a map-type graph, which was shown in the introduction. Additionally, the column 'Location' provides a verbal description of the crash location, noting the street(s) involved. We can therefore drop the columns 'X' and 'Y' in our cleaning process.</p></li>
+            
+        <li><p><strong>Impute NaN. </strong>Column 'Accident_Time' contains several 'Unknown' values. Presumably, these are instances where the recording officer did not indicate a particular time of crash. These values are as useful to us as NaN values; thus, we will replace all instances of 'Unknown' with the NumPy NaN value.</p></li>
+
+        <li><p><strong>Fix column values. </strong>For some reason, column 'Accident_Year' is filled entirely with NaN values. We can infer the proper values from the 'Accident_Date' column.</p></li>
+            
+        <li><p><strong>Create new columns. </strong>'Accident_Time' is only an approximation of the accident time, yet the column contains minute-precise values, such as 15:59. Using this column and its dubious precision can lead to misleading conclusions. We will therefore create a new column, named 'Accident_Hour', that truncates the accident time to its hour.</p></li>
+        </ul>
+
+        <p>Below are all the cleaning steps listed above performed. We create a new DataFrame object for each step, in case we wish to return to a previous state of data. The final DataFrame is assigned to the variable 'crash_cleaned'.</p>
+            
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/c1a232b35acc1ad5e98d33ef67728a6a.js"></script>
+        </div>
+        <h2 id="analysis">
+            Analysis
+        </h2>
+        <h3>Hourly Distribution</h3>
+        <p>We first look at the distribution of crashes across the 24 hours of a day. For this, we use our previously created 'Accident_Hour' column.</p>
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/07001adca7282849edc2e1fc618f5553.js"></script>
+        </div>
+        <p>There are three time ranges of particular note. 3pm-5pm and 7am-9am, when most people travel and return to work, are the time ranges when the most accidents occur. This is an expected result, as these are times when traffic is most likely to accrue. The fewest crashes occur in the 2am-4am range.</p>
+        
+        <p>We are interested in the severity of crashes during these time ranges. While the two afternoon ranges contain the most crashes, it is possible that the 2am-4am range has the most significant crash severity.</p>
+        
+        <p>To compare the severity of the crashes in these ranges, we will use the column 'Max_Injury'. This column notes the most severe category of injury sustained during the crash, prefaced with a disposition code between '00' and '04'. '00' indicates that there was no injury sustained, while '04' indicates a fatal injury.
+        </p>
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/2e4d7455d359b725c40b151b1ccfc1ba.js"></script>
+        </div>
+        <p>From this visualization, we can see that the majority of crashes during these time ranges are of the Minor category. However, this is not surprising, as Minor crashes make up <span class="sqlLink" id="injuryPercentages">the highest proportion of all injury types</span>.
+        </p>
+
+        <p>
+            For more specific insights, we can create a DataFrame that consists of the proportion of each injury severity sustained during the crashes within these time ranges.
+        </p>
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/e997f61e88e296dbc459e70713e42ef2.js"></script>
+        </div>
+        <p>
+            The DataFrame above confirms that the greatest proportion of fatal injuries occur during the 2am-4am range, despite this range having significantly fewer crashes in general. There are several factors that contribute to this higher proportion, such as less environmental lighting and less traffic supervision.
+        </p>
+        <p>
+            Next, we wish to view the number and injury severity of accidents in terms of the accidents' participants. There are four columns that categorize and indicate the distribution of participants in each crash: 'Num_of_Vehicle', 'Num_Of_Pedestrians', 'Num_of_Bicycles', and 'Num_of_Motorcycles'. 
+        </p>
+        <p>
+            Unfortunately, the 'Num_of_Vehicle' column is vague, and does not specify whether the vehicles involved are cars, trucks, or another kind of vehicle. We therefore drop this column from this part of our analysis, focusing on crashes that exclusively involve pairs of pedestrians, bicycles, and motorcycles.
+        </p>
+        <p>
+            This kind of exclusiveness is unlikely to produce any expected or insightful information, however, as demonstrated below. The sample size is too small.
+        </p>
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/66569a1d4dd0735e7b8b23f77f92f7dd.js"></script>
+        </div>
+        <p>Viewing the accident severity of these participants is more likely to produce interesting information. The code involved is very similar to that in the cell above. We will also create a DataFrame from this information.</p>
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/312195e9335dbad6cdc7fddffa901e93.js"></script>
+        </div>
+        <p>
+            When pedestrians or motorcycles are involved in a crash, the likelihood of a fatality is significantly higher. [Motorcycles are generally considered a more dangerous mode of transportation], and pedestrians typically have no protective measures when they are involved in a vehicular crash. Bicycles often travel at a lower speed than motorcycles and sometimes have their own lanes, though [this is a protective measure that is being waned back.]
+        </p>
+
+        <p>
+            Below is a pie chart containing the proportions of injury severity for pedestrians.
+        </p>
+
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/697215ae6c90ba2881bb74f4daea9981.js"></script>            
+        </div>
+
+        <h3>Conditions</h3>
+
+        <p>
+            While we can expect that wet, icy, and less visible environmental conditions will lead to more severe crashes, the majority of crashes occur in daylight. This is likely due to there being fewer wet, icy days than there are dry days, as well as the fact that most cars are mobile during the day.
+        </p>
+        
+        
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/1226b1680846cf7f873ce83fef5f3f90.js"></script>
+        </div>
+
+        <p>
+            Next we look at the crash conditions that lead to the greatest injury severity. We will ordinally encode the 'Max_Injury' column to create numeric values for crash severity. 0 indicates that no injury occurred and 4 indicates a fatality. Below is the resultant DataFrame that we will filter on and sort.
+        </p>
+
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/aa4aa1be3d3670667d8d9769a59c5509.js"></script>
+        </div>
+
+        <p>
+            We can use this DataFrame for a more clearer perspective on the most common crash conditions. This confirms the relationship between the number of cars present during the day (particularly, during rush hour) and the likelihood of a crash occurring.  
+        </p>
+
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/c60c3f990c9df78b41b109ab21f746ae.js"></script>
+        </div>
+
+        <p>
+            Next, we look at the conditions that lead to the most severe crashes. We filter on the DataFrame by conditions that were present in five or more crashes.
+        </p>
+        
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/e44b00f6f4b107f6c065870c865b09f6.js"></script>
+        </div>
+
+        <p>
+            We can now see that snow, wetness, low visibility, and no traffic control lead to significantly higher crash severities. All the above conditions have a numeric crash severity that is greater than 2.0, which indicates a Minor injury at least.
+        </p>
+
+        <h3>Locations</h3>
+
+        <p>
+            We now look at the specific locations where the highest number of crashes occurred. This makes use of the 'Location' column, which indicates the location of each crash by listing the street(s) involved.
+        </p>
+
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/4bfd808f395ea0f66f5cb008231b26e8.js"></script>
+        </div>
+
+        <p>
+            Crashes most often occur on highways. This is not surprising, given that highways contain the highest number of cars per day, and drivers travel at their highest speeds on highways.
+        </p>
+
+        <p>
+            There are two locations that are not on highways, however. 
+        </p>
+
+        <ol>
+            <li>
+                <p><strong>ST. JOSEPH BLVD @ JEANNE D'ARC BLVD </strong></p>
+                <iframe src="https://www.google.com/maps/embed?pb=!4v1718421942928!6m8!1m7!1sMv2QjTic1BQobkuVIAg1iQ!2m2!1d45.46532654566511!2d-75.5412110369039!3f183.5958473774158!4f9.69773406442998!5f0.7820865974627469" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                <p>This location contains a busy plaza, in which vehicular maneuvarbility may be difficult or congested. Additionally, there is a medical centre nearby; drivers who are actively experiencing personal medical emergencies might drive more erratically. This is a tendency that is noted again later in this project.</p>
+            </li>
+            <li>
+                <p><strong>HUNT CLUB RD @ RIVERSIDE DR</strong></p>
+                <iframe src="https://www.google.com/maps/embed?pb=!4v1718422166724!6m8!1m7!1smerHmFDbULCNDwoozRxJDg!2m2!1d45.33450455350224!2d-75.6931872523623!3f21.471709769891525!4f0!5f0.7820865974627469" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                <p>
+                    This location is a busy four-way intersection with turning routes next to each of the traffic lights. The City of Ottawa appears to have noted the high number of crashes that occur in this location and have <a href='https://ottawa.ca/en/city-hall/public-engagement/public-engagement-project-search/hunt-club-road-and-riverside-drive-intersection-modifications'>announced a project to improve its safety.</a></p>
+            </li>
+        </ol>
+
+        <p>
+            Next, we determine the locations that have the most severe crashes. The DataFrame created for this inquiry is below. We use a DataFrame from a previous inquiry, which used numeric encoding for column 'Max_Injury', and set the index to 'Location'.
+        </p>
+
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/a1b446078f7a882d2b3a16d2e99f2948.js"></script>
+        </div>
+
+        <p>
+            We filter on this DataFrame by locations with five or more crashes and sort by numeric injury severity.
+        </p>
+
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/58ed794b5a7425d975dc9ea4bd08a9af.js"></script>
+        </div>
+
+        <p>All of the above locations average a crash severity between a Minor (2) and Major (3) injury. Below is additional information about the three most severe locations.</p>
+
+        <ol>
+            <li>
+                <p><strong>CARLING AVE @ CIVIC HOSPITAL</strong></p>
+
+                <iframe src="https://www.google.com/maps/embed?pb=!4v1718505054132!6m8!1m7!1s4ibmYreI8QZq4MTtqsP9CA!2m2!1d45.39221843492645!2d-75.72124849381146!3f185.70460011433752!4f0.5380539324289941!5f0.7820865974627469" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                <p>
+                    There are anecdotes about the busyness of this location and the confusion civilian drivers experience when encountered with hospital vehicular protocols. There is also <a href='https://www.cbc.ca/news/canada/ottawa/carling-avenue-civic-hospital-crash-1.5417432'>an article</a> detailing the fatal crash of a pedestrian in 2020.
+                </p>
+            </li>
+            <li>
+                <p><strong>MITCH OWENS RD btwn DOWNEY RD & MANOTICK STATION RD</strong></p>
+                <iframe src="https://www.google.com/maps/embed?pb=!4v1718505103476!6m8!1m7!1s9uTl7ujv51PGM1zVGiM-pQ!2m2!1d45.25521349133768!2d-75.6263269907564!3f221.25346115975174!4f-3.8860049171640583!5f0.7820865974627469" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                <p>
+                    This location contains a long stretch of road with no traffic control. Some drivers might feel tempted to speed down this stretch of road; there are several turning routes into the road, including one from a soccer field's parking lot. There is <a href="https://www.ottawapolice.ca/en/news/fatal-collision-on-mitch-owens-road-police-seeking-witnesses.aspx">a police article</a> describing a fatal crash on Mitch Owens Rd in 2024.
+                </p>
+            </li>
+            <li>
+                <p><strong>WEST HUNT CLUB RD WB btwn CEDARVIEW RD & GREENBANK RD</strong></p>
+                <iframe src="https://www.google.com/maps/embed?pb=!4v1718505212938!6m8!1m7!1sScggRFrL5pmtXTI_5YJFPA!2m2!1d45.33593916855038!2d-75.70500922306503!3f178.4828535056083!4f1.822084755893485!5f0.7820865974627469" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                <p>
+                    This location contains a busy four-way traffic intersection, multiple U-turn points, and a low median. There are several articles detailing severe crashes in this location, including those with <a href="https://www.ottawapolice.ca/en/news/police-seeking-witnesses-to-a-vehicle-collision-on-west-hunt-club-road.aspx">pedestrians</a> and <a href="https://ottawacitizen.com/news/local-news/motorcyclist-critical-after-west-hunt-club-crash">motorcyclists</a>.
+                </p>
+            </li>
+        </ol>
+        
+        <h3>Accidents Over Time</h3>
+
+        <p>How has the number of crashes changed over the years? There will certainly be a drop in crashes around mid-2020, due to the lockdown that ensued from the COVID-19 pandemic.</p>
+
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/404284b4b3fd45def597610cd5716ed7.js"></script>
+        </div>
+
+        <p>Note that the above plot is not a representation of every day between 2017 and 2022; each bar is a sum of the number of accidents in a group of days.</p>
+
+        <p>The histogram confirms that there was a significant drop in crashes during the 2020 lockdown. Additionally, the crashes appear to follow a cyclical pattern throughout each year: the crashes are at their highest during the start of the year (winter season) and their lowest mid-year (summer and vacation season).</p>
+
+        <p>To look at this pattern more closely, we can look at the number of crashes throughout a particular year. The 2020 provincial lockdown, which began in December of 2020, is an anomaly whose crash statistics does not represent trends that are observable in everyday driving. Therefore, we will look only at one particular year in this stage of analysis, namely 2017.</p>
+
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/1b3709d7dd72c455d35c438b3acd8742.js"></script>
+        </div>
+
+        <p>
+            The plot confirms that the highest number of crashes occur between November and February, the snowiest months of the year in Ottawa. By contrast, the number of crashes drop during the spring/summer.
+        </p>
+
+        <p>
+            On which days did the most accidents happen? We expect that some of these days will have special events or occurrences that drastically increased the number of crashes.
+        </p>
+
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/83233c41415e2ae5dda3af6c5664056d.js"></script>
+        </div>
+
+        Below is additional information about the days with the three highest number of crashes.
+
+        <ol>
+            <li>
+                <strong>February 18, 2022</strong>
+                <p>On this day, Ottawa police began arresting and removing 'Freedom Convoy' protestors from the downtown core. The protestors had occupied various streets downtown for about three weeks, many of whom commited multiple traffic violations with semi-trailer trucks. Additional information can be found in <a href="https://ottawa.ctvnews.ca/protesters-rally-on-parliament-hill-on-anniversary-of-freedom-convoy-removal-1.6279840#:~:text=A%20massive%20police%20operation%20with,Ottawa%20streets%20for%20three%20weeks.">this article</a>.</p>
+            </li>
+            <li>
+                <strong>March 24, 2017</strong>
+                <p>This day marked the snowiest day in Ottawa since 1926. Ottawa Police reported 65 vehicular collisions before noon. More information can be found in <a href="https://ottawa.ctvnews.ca/record-snowfall-for-march-24-1.3339369">this article</a>.</p>
+            </li>
+            <li>
+                <strong>January 21, 2019</strong>
+                <p>The day previous, Ottawa experienced significant snowfall, winds, and cold, with a high of only -17 degrees celcius. Additional information can be found in <a href="https://www.cbc.ca/news/canada/ottawa/ottawa-weather-january-21-2019-1.4986133">this article</a>.</p>
+            </li>
+        </ol>
+
+        <h2 id="machine-learning">Machine Learning</h2>
+
+        <p>
+            We seek to create a machine learning model that can predict an injury severity based on a given distribution of crash participants. For example, if the model is told that two motorcyclists had crashed, it will attempt to predict the numerical crash severity and return a float between 0 and 4.
+        </p>
+
+        <h3>Decision Tree Regressor</h3>
+        <p>
+            We first preprocess the dataset to include only columns that are relevant to the model, namely 'Num_of_Vehicle', 'Num_Of_Pedestrians', 'Num_of_Bicycles', and 'Num_of_Motorcycles' (variable X). The model will use the data from these column to predict a numerical value for column 'Max_Injury' (variable y).
+        </p>
+        <p>
+            We also impute 0 into NaN entries in these columns; we assume that if a participant was not recorded, they were not involved in the crash.
+        </p>
+
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/1b4ce386cccdea609d76a2abf97de3b6.js"></script>
+        </div>
+
+        <p>
+            When creating our Decision Tree Regressor model, we will base the accuracy of our model on the mean absolute error when tested against the training data in variable y_test. To find a minimal mean absolute error, and by extension, a good model, we will create 1000 models. Below is the formula and explanation for mean absolute error.
+        </p>
+
+        <p id="math-explain">
+            Where <code>y</code> is the actual value, <code>y'</code> is the value predicted by the model, and <code>n</code> is the number of data points in testing, we have
+            <math xmlns="http://www.w3.org/1998/Math/MathML">
+                <mrow>
+                    <mstyle displaystyle="true">
+                        <mi id="lhs">Mean Absolute Value</mi>
+                        <mo>=</mo>
+                        <mfrac>
+                            <mrow>
+                                <mo class="sumAbsDiv mathClick">&sum;</mo>
+                                <mo class="sumAbsDiv mathClick">|</mo>
+                                <mi class="y mathClick">y</mi>
+                                <mo>-</mo>
+                                <mi class="yPrime mathClick">y'</mi>
+                                <mo class="sumAbsDiv mathClick">|</mo>
+                            </mrow>
+                            <mrow>
+                                <mi class="n mathClick">n</mi>
+                            </mrow>
+                        </mfrac>
+                    </mstyle>
+                </mrow>
+            </math>
+            This formula takes each pair of actual and predicted data points, calculates their difference, and gives the average of all these differences. 
+        </p>
+
+        <p>
+            The models will have a varying max_leaf_nodes value between 2 and 5000, with a step size of 5. max_leaf_nodes helps control the model's complexity. A model with max_leaf_nodes=2 will be significantly underfit, with the model not having learned sufficiently many patterns from X_train's training data. On the other hand, a model with max_leaf_nodes will be overfit, with the model being too dependent on the training data and made unreliable as a predictor of new data.
+        </p>
+
+        <p>
+            The following code finds the ideal max_leaf_nodes value between 2 and 5000 by giving a new max_leaf_nodes value to each model, and finding that which minimizes the mean absolute error.
+        </p>
+
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/23417d244838f223423c38ca2f4d8177.js"></script>
+        </div>
+
+        <p>
+            max_leaf_nodes=12 will yield the the smallest mean absolute error. The max_leaf_nodes values and their respective error scores are recorded in a dictionary variable named error_dict.
+        </p>
+
+        <p>
+            We intend to plot error_dict to illustrate the benefit of choosing 12 as our max_leaf_nodes value; however, error_dict contains 1000 independent variables, and so the aforementioned benefit will not be easily visible. To find a good range to "magnify" the plot on, we can divide the independent variables into 50-step bins and see where there is the greatest variance in dependent variables. Specifically, we will look at the standard deviation of these bins.
+        </p>
+
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/9e9b18ac56c86304bc3f33cb8fffabfe.js"></script>
+        </div>
+
+        <p>
+            Clearly, max_leaf_nodes values in the range of (0,50]=[2,50] have noticeable variance, and the benefit of choosing max_leaf_nodes=12 will be visible in a plot restricted to this range. We show such a plot below.
+        </p>
+
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/1cd86a6b6ede15a6863ff3a2b1c87013.js"></script>
+        </div>
+
+        <p>
+            We now fit a final decision tree regressor model based on our observations. 
+        </p>
+
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/15afc801dff026c309fc4dc283c835dc.js"></script>
+        </div>
+        <h3>Random Forest Regressor</h3>
+        <p>
+            We will now build a random forest regressor model and see whether it yields a lower mean absolute error score than our final decision tree regressor model. Unlike a decision tree, a random forest will pick out random subsets of the data and features (the "forests") and make predictions by averaging their ensuing results.
+        </p>
+
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/9fbe5a1f538f73255fe9a6fedb1f9283.js"></script>
+        </div>
+
+        <p>
+            This model is slightly more error-prone than the decision tree model we optimized earlier, but we will still use it in our predictions later.
+        </p>
+        
+        <h3>XGBRegressor</h3>
+
+        <p>
+            Lastly, we will create an XGBRegressor model. The algorithm will iteratively create new models by reducing a loss factor in each model, and by using gradient boosting to better the performance.
+        </p>
+
+        <p>
+            The parameter n_estimators in the XGBRegressor constructor indicates the number of models to be created, and early_stopping_rounds is the number of times we want the algorithm to repeat with an increasing validation loss. We set these parameters to 10 and 3, respectively. 
+        </p>
+
+        <div class="gist">
+            <script src="https://gist.github.com/hadialsayedali01/33009b47fcb66bf781c9be8fc3eeb156.js"></script>
+        </div>
+
+        <h3>Testing Models</h3>
+
+        <p>
+            Finally, we will manually input new data to test each of our decision tree, random forest, and xgboost models. To categorize the severity of an injury, we will map the results using a get_injury_label function. The data we input manually is a crash between two motorcyclists. 
+        </p>
+
+        <script src="https://gist.github.com/hadialsayedali01/d6d97bdbd43eccd58dafe24db7502f2d.js"></script>
+
+        <p>
+            All three models predicted a Minor injury with a maximum difference of less than 4%. This is a good sign, especially since the dataset the models were trained on was relatively small. To significantly improve the models, we would need a dataset of hundreds of thousands more records.
+        </p>
+
+        <p>
+            There are limitations to the models' predictive ability. This dataset consists only of <strong>vehicular</strong> crashes, so the models are unable to return 0 when asked about the severity of crash containing no participants. Similarly, if asked about the severity of injury ensuing from an accident between two pedestrians, the models will produce unexpected values. This is due to the models' assumption that the data fed into it will be that of vehicular crashes.
+        </p>
+
+
+
+        
+
+
+
+
+    </div>
+    
+    
+</body>
+<script src='./index.js'>
+</script>
+</html>
